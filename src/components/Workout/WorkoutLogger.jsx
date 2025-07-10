@@ -4,6 +4,7 @@ import * as FiIcons from 'react-icons/fi'
 import SafeIcon from '../../common/SafeIcon'
 import { useAuth } from '../../contexts/AuthContext'
 import { analyzeWorkoutAndUpdateMuscleStatus } from '../../lib/openai'
+import ExerciseAutocomplete from './ExerciseAutocomplete'
 import toast from 'react-hot-toast'
 
 const { FiPlus, FiTrash2, FiSave, FiActivity } = FiIcons
@@ -37,6 +38,7 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
     }
 
     setLoading(true)
+    
     try {
       const sessionData = {
         id: Date.now().toString(),
@@ -47,16 +49,22 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
         created_at: new Date().toISOString()
       }
 
-      // Save session to localStorage
+      console.log('Saving workout:', sessionData)
+
+      // Save session to localStorage first
       const sessionsKey = `rp_sessions_${currentUser.id}`
       const existingSessions = JSON.parse(localStorage.getItem(sessionsKey) || '[]')
       const updatedSessions = [sessionData, ...existingSessions]
       localStorage.setItem(sessionsKey, JSON.stringify(updatedSessions))
 
+      console.log('Session saved to localStorage')
+
       // Analyze workout with AI (mock implementation)
       const analysis = await analyzeWorkoutAndUpdateMuscleStatus(sessionData, currentUser)
       
-      if (analysis && analysis.muscleUpdates) {
+      console.log('Analysis result:', analysis)
+
+      if (analysis && analysis.muscleUpdates && analysis.muscleUpdates.length > 0) {
         // Update muscle status in localStorage
         const muscleStatusKey = `rp_muscle_status_${currentUser.id}`
         const existingMuscleStatus = JSON.parse(localStorage.getItem(muscleStatusKey) || '[]')
@@ -82,15 +90,23 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
         })
         
         localStorage.setItem(muscleStatusKey, JSON.stringify(updatedMuscleStatus))
+        console.log('Muscle status updated:', updatedMuscleStatus)
       }
 
-      toast.success('Workout logged successfully!')
+      toast.success('Workout logged successfully! 💪')
+      
+      // Reset form
       setExerciseLogs([{ exerciseName: '', sets: 1, reps: 10, loadKg: 20 }])
       setPerceivedExertion(7)
-      onWorkoutSaved?.()
+      
+      // Refresh dashboard data
+      if (onWorkoutSaved) {
+        onWorkoutSaved()
+      }
+      
     } catch (error) {
       console.error('Error saving workout:', error)
-      toast.error('Failed to save workout')
+      toast.error('Failed to save workout. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -125,12 +141,10 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Exercise Name
                     </label>
-                    <input
-                      type="text"
+                    <ExerciseAutocomplete
                       value={log.exerciseName}
-                      onChange={(e) => updateExercise(index, 'exerciseName', e.target.value)}
-                      placeholder="e.g., Bench Press"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      onChange={(value) => updateExercise(index, 'exerciseName', value)}
+                      placeholder="Search exercise..."
                     />
                   </div>
 
@@ -142,7 +156,7 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
                       type="number"
                       min="1"
                       value={log.sets}
-                      onChange={(e) => updateExercise(index, 'sets', parseInt(e.target.value))}
+                      onChange={(e) => updateExercise(index, 'sets', parseInt(e.target.value) || 1)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
@@ -155,7 +169,7 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
                       type="number"
                       min="1"
                       value={log.reps}
-                      onChange={(e) => updateExercise(index, 'reps', parseInt(e.target.value))}
+                      onChange={(e) => updateExercise(index, 'reps', parseInt(e.target.value) || 1)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
@@ -170,7 +184,7 @@ const WorkoutLogger = ({ onWorkoutSaved }) => {
                         min="0"
                         step="0.5"
                         value={log.loadKg}
-                        onChange={(e) => updateExercise(index, 'loadKg', parseFloat(e.target.value))}
+                        onChange={(e) => updateExercise(index, 'loadKg', parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                       />
                     </div>

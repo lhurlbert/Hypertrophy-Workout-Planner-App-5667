@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import * as FiIcons from 'react-icons/fi'
 import SafeIcon from '../../common/SafeIcon'
+import exerciseDatabase from '../../data/exerciseDatabase'
 
 const { FiTarget, FiCheckCircle, FiAlertCircle, FiInfo } = FiIcons
 
@@ -17,36 +18,16 @@ const ExerciseRecommendations = ({ muscleStatus }) => {
     const moderateMuscles = muscleStatus.filter(m => m.status === 'moderate')
     const fatiguedMuscles = muscleStatus.filter(m => m.status === 'fatigued')
 
-    const exerciseDatabase = [
-      // Push exercises
-      { name: 'Bench Press', primaryMuscle: 'chest', secondaryMuscles: ['shoulders', 'triceps'], equipment: ['barbell', 'bench'] },
-      { name: 'Incline Dumbbell Press', primaryMuscle: 'chest', secondaryMuscles: ['shoulders'], equipment: ['dumbbells', 'bench'] },
-      { name: 'Overhead Press', primaryMuscle: 'shoulders', secondaryMuscles: ['triceps'], equipment: ['barbell'] },
-      { name: 'Lateral Raises', primaryMuscle: 'shoulders', secondaryMuscles: [], equipment: ['dumbbells'] },
-      { name: 'Tricep Dips', primaryMuscle: 'triceps', secondaryMuscles: ['chest'], equipment: ['dip bars'] },
-      
-      // Pull exercises
-      { name: 'Pull-ups', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'rhomboids'], equipment: ['pull-up bar'] },
-      { name: 'Barbell Rows', primaryMuscle: 'lats', secondaryMuscles: ['rhomboids', 'biceps'], equipment: ['barbell'] },
-      { name: 'Face Pulls', primaryMuscle: 'rear delts', secondaryMuscles: ['rhomboids'], equipment: ['cables'] },
-      { name: 'Bicep Curls', primaryMuscle: 'biceps', secondaryMuscles: [], equipment: ['dumbbells'] },
-      
-      // Legs
-      { name: 'Squats', primaryMuscle: 'quads', secondaryMuscles: ['glutes'], equipment: ['barbell'] },
-      { name: 'Romanian Deadlifts', primaryMuscle: 'hamstrings', secondaryMuscles: ['glutes'], equipment: ['barbell'] },
-      { name: 'Bulgarian Split Squats', primaryMuscle: 'quads', secondaryMuscles: ['glutes'], equipment: ['dumbbells'] },
-      { name: 'Calf Raises', primaryMuscle: 'calves', secondaryMuscles: [], equipment: ['dumbbells'] },
-    ]
-
     const newRecommendations = []
 
     // Recommend exercises for fresh muscles
     freshMuscles.forEach(muscle => {
       const suitableExercises = exerciseDatabase.filter(ex => 
-        ex.primaryMuscle === muscle.muscle || ex.secondaryMuscles.includes(muscle.muscle)
+        ex.primaryMuscle === muscle.muscle || 
+        ex.secondaryMuscles.includes(muscle.muscle)
       )
-      
-      suitableExercises.forEach(exercise => {
+
+      suitableExercises.slice(0, 3).forEach(exercise => {
         newRecommendations.push({
           ...exercise,
           reason: `${muscle.muscle} is fresh and ready for training`,
@@ -61,7 +42,7 @@ const ExerciseRecommendations = ({ muscleStatus }) => {
       const lightExercises = exerciseDatabase.filter(ex => 
         ex.secondaryMuscles.includes(muscle.muscle)
       )
-      
+
       lightExercises.slice(0, 2).forEach(exercise => {
         newRecommendations.push({
           ...exercise,
@@ -77,38 +58,60 @@ const ExerciseRecommendations = ({ muscleStatus }) => {
       newRecommendations.push({
         name: `Avoid ${muscle.muscle} exercises`,
         primaryMuscle: muscle.muscle,
-        reason: `${muscle.muscle} needs ${muscle.estRecoveryHrs}h recovery`,
+        reason: `${muscle.muscle} needs ${muscle.est_recovery_hrs}h recovery`,
         priority: 'low',
         status: 'avoid'
       })
     })
 
-    setRecommendations(newRecommendations)
+    // If no recommendations based on muscle status, suggest balanced workout
+    if (newRecommendations.length === 0 && exerciseDatabase.length > 0) {
+      // Get one exercise from each major category
+      const categories = ['push', 'pull', 'legs'];
+      
+      categories.forEach(category => {
+        const exercises = exerciseDatabase.filter(ex => ex.category === category);
+        if (exercises.length > 0) {
+          const randomExercise = exercises[Math.floor(Math.random() * exercises.length)];
+          newRecommendations.push({
+            ...randomExercise,
+            reason: 'Suggested for a balanced workout',
+            priority: 'medium',
+            status: 'recommended'
+          });
+        }
+      });
+    }
+
+    // Deduplicate recommendations by exercise name
+    const uniqueRecommendations = [];
+    const exerciseNames = new Set();
+    
+    newRecommendations.forEach(rec => {
+      if (!exerciseNames.has(rec.name)) {
+        exerciseNames.add(rec.name);
+        uniqueRecommendations.push(rec);
+      }
+    });
+
+    setRecommendations(uniqueRecommendations)
   }
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'recommended':
-        return FiCheckCircle
-      case 'caution':
-        return FiAlertCircle
-      case 'avoid':
-        return FiTarget
-      default:
-        return FiInfo
+      case 'recommended': return FiCheckCircle
+      case 'caution': return FiAlertCircle
+      case 'avoid': return FiTarget
+      default: return FiInfo
     }
   }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'recommended':
-        return 'text-green-600 bg-green-50 border-green-200'
-      case 'caution':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-      case 'avoid':
-        return 'text-red-600 bg-red-50 border-red-200'
-      default:
-        return 'text-gray-600 bg-gray-50 border-gray-200'
+      case 'recommended': return 'text-green-600 bg-green-50 border-green-200'
+      case 'caution': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
+      case 'avoid': return 'text-red-600 bg-red-50 border-red-200'
+      default: return 'text-gray-600 bg-gray-50 border-gray-200'
     }
   }
 
